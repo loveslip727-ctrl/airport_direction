@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>인천공항 스마트 안내</title>
+    <style>
+      :root {
+        --blue: #1a56db;
+        --blue-light: #e8f0fe;
+        --green: #0f9d58;
+        --green-light: #e6f4ea;
+        --gray: #f5f7fb;
+        --line: #d8deea;
+        --text: #172033;
+        --text-soft: #586174;
+        --white: #ffffff;
+        --radius: 18px;
+        --shadow: 0 4px 18px rgba(18, 31, 56, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", Arial, sans-serif;
+        background: #eef2fb;
+        color: var(--text);
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .screen {
+        display: none;
+        width: 100%;
+        min-height: 100vh;
+      }
+
+      .screen.active {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .visitor-header {
+        background: var(--blue);
+        padding: 24px 20px 18px;
+        text-align: center;
+      }
+
+      .visitor-header .badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        padding: 5px 14px;
+        border-radius: 999px;
+        margin-bottom: 10px;
+      }
+
+      .visitor-header h1 {
+        color: #fff;
+        font-size: clamp(22px, 4vw, 34px);
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .lang-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        background: #f3f5f9;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .lang-tab {
+        min-height: 54px;
+        border: 0;
+        border-bottom: 4px solid transparent;
+        background: transparent;
+        color: var(--text-soft);
+        font-size: clamp(14px, 2.5vw, 20px);
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .lang-tab.active {
+        border-bottom-color: var(--blue);
+        background: var(--white);
+        color: var(--blue);
+      }
+
+      .dest-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: 1fr;
+        gap: 14px;
+        flex: 1;
+        padding: 16px;
+        min-height: 0;
+      }
+
+      .dest-card {
+        border: 2px solid transparent;
+        border-radius: var(--radius);
+        background: var(--white);
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-height: 150px;
+        padding: 18px;
+        text-align: center;
+        transition:
+          transform 0.15s ease,
+          border-color 0.15s ease,
+          background 0.15s ease;
+      }
+
+      .dest-card:active {
+        transform: scale(0.97);
+      }
+
+      .dest-card:hover {
+        border-color: var(--blue);
+        background: var(--blue-light);
+      }
+
+      .dest-card .icon {
+        font-size: clamp(46px, 9vw, 88px);
+        line-height: 1;
+      }
+
+      .dest-card .label-main {
+        color: var(--text);
+        font-size: clamp(22px, 4.2vw, 42px);
+        font-weight: 900;
+        line-height: 1.12;
+      }
+
+      .dest-card .label-sub {
+        color: var(--text-soft);
+        font-size: clamp(14px, 2.4vw, 22px);
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .guide-header {
+        background: var(--green);
+        padding: 18px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .back-btn {
+        width: 46px;
+        height: 46px;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        font-size: 26px;
+        font-weight: 900;
+        cursor: pointer;
+        flex: 0 0 auto;
+      }
+
+      .guide-header h2 {
+        color: #fff;
+        font-size: clamp(20px, 3.4vw, 30px);
+        font-weight: 900;
+      }
+
+      .guide-header p {
+        color: rgba(255, 255, 255, 0.84);
+        margin-top: 3px;
+        font-size: clamp(13px, 2vw, 17px);
+        font-weight: 700;
+      }
+
+      .guide-body {
+        width: min(1180px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 18px 0 28px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .guide-dest-card {
+        background: var(--green-light);
+        border-radius: var(--radius);
+        padding: 20px;
+        text-align: center;
+      }
+
+      .guide-dest-card .dest-icon {
+        display: block;
+        font-size: clamp(46px, 8vw, 72px);
+        margin-bottom: 8px;
+      }
+
+      .guide-dest-card .dest-ko {
+        font-size: clamp(26px, 5vw, 44px);
+        font-weight: 900;
+        line-height: 1.2;
+      }
+
+      .guide-dest-card .dest-detail {
+        color: var(--text-soft);
+        font-size: clamp(14px, 2.4vw, 19px);
+        margin-top: 8px;
+        font-weight: 700;
+      }
+
+      .action-card {
+        background: var(--blue);
+        border-radius: var(--radius);
+        color: #fff;
+        padding: 18px 20px;
+      }
+
+      .action-label {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        opacity: 0.82;
+        margin-bottom: 8px;
+        font-weight: 800;
+      }
+
+      .action-text {
+        font-size: clamp(19px, 3.5vw, 31px);
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .language-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .language-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--white);
+        padding: 18px;
+        min-height: 138px;
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .language-card:active {
+        transform: scale(0.98);
+      }
+
+      .language-label {
+        color: var(--blue);
+        font-size: 15px;
+        font-weight: 900;
+        margin-bottom: 10px;
+      }
+
+      .language-text {
+        font-size: clamp(18px, 3.2vw, 28px);
+        font-weight: 900;
+        line-height: 1.35;
+      }
+
+      .language-roman {
+        color: var(--text-soft);
+        font-size: clamp(13px, 2vw, 17px);
+        font-weight: 700;
+        line-height: 1.45;
+        margin-top: 8px;
+      }
+
+      .tts-buttons {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .tts-btn,
+      .follow-me-btn {
+        border: 0;
+        border-radius: var(--radius);
+        color: #fff;
+        cursor: pointer;
+        font-weight: 900;
+      }
+
+      .tts-btn {
+        min-height: 58px;
+        background: #374151;
+        font-size: clamp(13px, 2vw, 17px);
+      }
+
+      .tts-btn.playing {
+        background: var(--blue);
+      }
+
+      .follow-me-btn {
+        background: #ff6b35;
+        min-height: 68px;
+        font-size: clamp(18px, 3.2vw, 28px);
+        box-shadow: 0 5px 18px rgba(255, 107, 53, 0.32);
+      }
+
+      @media (orientation: landscape) and (min-width: 700px) {
+        .dest-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(180px, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .dest-grid {
+          gap: 10px;
+          padding: 10px;
+        }
+
+        .language-grid,
+        .tts-buttons {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="screen active" id="screen-visitor">
+      <header class="visitor-header">
+        <div class="badge">INCHEON AIRPORT GUIDE</div>
+        <h1 id="visitor-title">Where would you like to go?<br />Which transportation do you need?</h1>
+      </header>
+
+      <nav class="lang-tabs" aria-label="language">
+        <button class="lang-tab active" type="button" data-lang="en">🇺🇸 English</button>
+        <button class="lang-tab" type="button" data-lang="zh">🇨🇳 中文</button>
+        <button class="lang-tab" type="button" data-lang="ja">🇯🇵 日本語</button>
+      </nav>
+
+      <main class="dest-grid" id="dest-grid"></main>
+    </div>
+
+    <div class="screen" id="screen-guide">
+      <header class="guide-header">
+        <button class="back-btn" type="button" id="back-btn" aria-label="뒤로">‹</button>
+        <div>
+          <h2>안내 화면</h2>
+          <p>중국어와 일본어까지 모두 확인하고 음성으로 안내할 수 있습니다.</p>
+        </div>
+      </header>
+
+      <main class="guide-body">
+        <section class="guide-dest-card">
+          <span class="dest-icon" id="g-icon">🚆</span>
+          <div class="dest-ko" id="g-ko">목적지</div>
+          <div class="dest-detail" id="g-detail"></div>
+        </section>
+
+        <section class="action-card">
+          <div class="action-label">안내 방법</div>
+          <div class="action-text" id="g-action"></div>
+        </section>
+
+        <section class="language-grid" id="language-grid"></section>
+
+        <section class="tts-buttons">
+          <button class="tts-btn" type="button" data-speak="ko">🇰🇷 한국어</button>
+          <button class="tts-btn" type="button" data-speak="en">🇺🇸 English</button>
+          <button class="tts-btn" type="button" data-speak="zh">🇨🇳 中文</button>
+          <button class="tts-btn" type="button" data-speak="ja">🇯🇵 日本語</button>
+        </section>
+
+        <button class="follow-me-btn" type="button" id="follow-me-btn">
+          이쪽으로 오세요 / Follow me / 请跟我来 / こちらへどうぞ
+        </button>
+      </main>
+    </div>
+
+    <script>
+      const destinations = [
+        {
+          icon: "🚆",
+          koName: "공항철도",
+          detail: "지하 1층 · 서울역 방면",
+          labels: {
+            en: { main: "Airport Railroad", sub: "To Seoul" },
+            zh: { main: "机场铁路", sub: "前往首尔" },
+            ja: { main: "空港鉄道", sub: "ソウル方面" },
+          },
+          action: "지하 1층 공항철도 승강장으로 안내해 주세요.",
+          tts: {
+            ko: {
+              label: "한국어",
+              text: "공항철도 승강장은 지하 1층입니다. 저를 따라오세요.",
+              roman: "",
+            },
+            en: {
+              label: "English",
+              text: "The Airport Railroad is on basement level 1. Please follow me.",
+              roman: "",
+            },
+            zh: {
+              label: "中文",
+              text: "机场铁路在地下一层。请跟我来。",
+              roman: "Jīchǎng tiělù zài dìxià yī céng. Qǐng gēn wǒ lái.",
+            },
+            ja: {
+              label: "日本語",
+              text: "空港鉄道は地下1階です。私について来てください。",
+              roman: "Kūkō tetsudō wa chika ikkai desu. Watashi ni tsuite kite kudasai.",
+            },
+          },
+        },
+        {
+          icon: "🚌",
+          koName: "리무진버스",
+          detail: "1층 교통센터 · 서울/시내 방면",
+          labels: {
+            en: { main: "Limousine Bus", sub: "To Seoul / City" },
+            zh: { main: "机场大巴", sub: "前往首尔/市区" },
+            ja: { main: "リムジンバス", sub: "ソウル/市内方面" },
+          },
+          action: "1층 교통센터 버스 탑승구로 안내해 주세요.",
+          tts: {
+            ko: {
+              label: "한국어",
+              text: "버스 탑승구는 1층 교통센터입니다. 저를 따라오세요.",
+              roman: "",
+            },
+            en: {
+              label: "English",
+              text: "The limousine bus stop is at the 1st floor transportation center. Please follow me.",
+              roman: "",
+            },
+            zh: {
+              label: "中文",
+              text: "机场大巴乘车处在一楼交通中心。请跟我来。",
+              roman: "Jīchǎng dàbā chéngchē chù zài yī lóu jiāotōng zhōngxīn. Qǐng gēn wǒ lái.",
+            },
+            ja: {
+              label: "日本語",
+              text: "リムジンバス乗り場は1階交通センターです。私について来てください。",
+              roman: "Rimujin basu noriba wa ikkai kōtsū sentā desu. Watashi ni tsuite kite kudasai.",
+            },
+          },
+        },
+        {
+          icon: "🚕",
+          koName: "택시",
+          detail: "1층 출구 · 일반/모범/대형",
+          labels: {
+            en: { main: "Taxi", sub: "1F Exit" },
+            zh: { main: "出租车", sub: "一楼出口" },
+            ja: { main: "タクシー", sub: "1階出口" },
+          },
+          action: "1층 출구 택시 승강장으로 안내해 주세요.",
+          tts: {
+            ko: {
+              label: "한국어",
+              text: "택시 승강장은 1층 출구입니다. 저를 따라오세요.",
+              roman: "",
+            },
+            en: {
+              label: "English",
+              text: "The taxi stand is at the 1st floor exit. Please follow me.",
+              roman: "",
+            },
+            zh: {
+              label: "中文",
+              text: "出租车乘车处在一楼出口。请跟我来。",
+              roman: "Chūzūchē chéngchē chù zài yī lóu chūkǒu. Qǐng gēn wǒ lái.",
+            },
+            ja: {
+              label: "日本語",
+              text: "タクシー乗り場は1階出口です。私について来てください。",
+              roman: "Takushī noriba wa ikkai deguchi desu. Watashi ni tsuite kite kudasai.",
+            },
+          },
+        },
+        {
+          icon: "🏝️",
+          koName: "영종도",
+          detail: "호텔 · 리조트 · 운서/영종 방면",
+          labels: {
+            en: { main: "Yeongjong Island", sub: "Hotel / Resort" },
+            zh: { main: "永宗岛", sub: "酒店/度假村" },
+            ja: { main: "永宗島", sub: "ホテル/リゾート" },
+          },
+          action: "공항철도 영종역 또는 운서역 방향을 안내해 주세요.",
+          tts: {
+            ko: {
+              label: "한국어",
+              text: "영종도는 공항철도 영종역 또는 운서역에서 내리시면 됩니다.",
+              roman: "",
+            },
+            en: {
+              label: "English",
+              text: "For Yeongjong Island, please get off at Yeongjong or Unseo Station on the Airport Railroad.",
+              roman: "",
+            },
+            zh: {
+              label: "中文",
+              text: "前往永宗岛，请在机场铁路永宗站或云西站下车。",
+              roman: "Qiánwǎng Yǒngzōngdǎo, qǐng zài jīchǎng tiělù Yǒngzōng zhàn huò Yúnxī zhàn xiàchē.",
+            },
+            ja: {
+              label: "日本語",
+              text: "永宗島へは空港鉄道の永宗駅または雲西駅でお降りください。",
+              roman: "Yeongjong-tō e wa kūkō tetsudō no Yeongjong-eki matawa Unseo-eki de o-orikudasai.",
+            },
+          },
+        },
+        {
+          icon: "🛫",
+          koName: "출발층",
+          detail: "3층 · 체크인 카운터",
+          labels: {
+            en: { main: "Departure", sub: "Check-in / 3F" },
+            zh: { main: "出发大厅", sub: "值机 / 3楼" },
+            ja: { main: "出発ロビー", sub: "チェックイン / 3階" },
+          },
+          action: "3층 출발 체크인 카운터로 안내해 주세요.",
+          tts: {
+            ko: {
+              label: "한국어",
+              text: "출발 체크인 카운터는 3층입니다. 저를 따라오세요.",
+              roman: "",
+            },
+            en: {
+              label: "English",
+              text: "The departure check-in counters are on the 3rd floor. Please follow me.",
+              roman: "",
+            },
+            zh: {
+              label: "中文",
+              text: "出发值机柜台在三楼。请跟我来。",
+              roman: "Chūfā zhíjī guìtái zài sān lóu. Qǐng gēn wǒ lái.",
+            },
+            ja: {
+              label: "日本語",
+              text: "出発チェックインカウンターは3階です。私について来てください。",
+              roman: "Shuppatsu chekkuin kauntā wa sankai desu. Watashi ni tsuite kite kudasai.",
+            },
+          },
+        },
+        {
+          icon: "🚻",
+          koName: "화장실",
+          detail: "가까운 화장실 · 현재 위치 기준",
+          labels: {
+            en: { main: "Restroom", sub: "Nearest" },
+            zh: { main: "洗手间", sub: "最近" },
+            ja: { main: "トイレ", sub: "最寄り" },
+          },
+          action: "가장 가까운 화장실 방향을 안내해 주세요.",
+          tts: {
+            ko: {
+              label: "한국어",
+              text: "화장실은 저쪽입니다.",
+              roman: "",
+            },
+            en: {
+              label: "English",
+              text: "The restroom is over there.",
+              roman: "",
+            },
+            zh: {
+              label: "中文",
+              text: "洗手间在那边。",
+              roman: "Xǐshǒujiān zài nàbiān.",
+            },
+            ja: {
+              label: "日本語",
+              text: "トイレはあちらです。",
+              roman: "Toire wa achira desu.",
+            },
+          },
+        },
+      ];
+
+      const titles = {
+        en: "Where would you like to go?\nWhich transportation do you need?",
+        zh: "您想去哪里？\n需要哪种交通方式？",
+        ja: "どちらへ行かれますか？\nどの交通手段が必要ですか？",
+      };
+
+      const languageNames = {
+        ko: "🇰🇷 한국어",
+        en: "🇺🇸 English",
+        zh: "🇨🇳 中文",
+        ja: "🇯🇵 日本語",
+      };
+
+      const langCodes = {
+        ko: "ko-KR",
+        en: "en-US",
+        zh: "zh-CN",
+        ja: "ja-JP",
+      };
+
+      let currentLang = "en";
+      let currentDest = null;
+
+      const visitorTitle = document.querySelector("#visitor-title");
+      const visitorScreen = document.querySelector("#screen-visitor");
+      const guideScreen = document.querySelector("#screen-guide");
+      const destGrid = document.querySelector("#dest-grid");
+      const languageGrid = document.querySelector("#language-grid");
+
+      document.querySelectorAll(".lang-tab").forEach((tab) => {
+        tab.addEventListener("click", () => setLang(tab.dataset.lang));
+      });
+
+      document.querySelector("#back-btn").addEventListener("click", goBack);
+      document.querySelector("#follow-me-btn").addEventListener("click", speakFollowMe);
+      document.querySelectorAll(".tts-btn").forEach((button) => {
+        button.addEventListener("click", () => speak(button.dataset.speak));
+      });
+
+      function setLang(lang) {
+        currentLang = lang;
+        document.querySelectorAll(".lang-tab").forEach((tab) => {
+          tab.classList.toggle("active", tab.dataset.lang === lang);
+        });
+        visitorTitle.innerHTML = titles[lang].replace("\n", "<br />");
+        renderGrid();
+      }
+
+      function renderGrid() {
+        destGrid.replaceChildren();
+        destinations.forEach((destination, index) => {
+          const label = destination.labels[currentLang];
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "dest-card";
+          card.innerHTML = `
+            <span class="icon">${destination.icon}</span>
+            <span class="label-main">${label.main}</span>
+            <span class="label-sub">${label.sub}</span>
+          `;
+          card.addEventListener("click", () => selectDest(index));
+          destGrid.append(card);
+        });
+      }
+
+      function selectDest(index) {
+        currentDest = index;
+        const destination = destinations[index];
+        document.querySelector("#g-icon").textContent = destination.icon;
+        document.querySelector("#g-ko").textContent = destination.koName;
+        document.querySelector("#g-detail").textContent = destination.detail;
+        document.querySelector("#g-action").textContent = destination.action;
+
+        renderLanguageCards(destination);
+        visitorScreen.classList.remove("active");
+        guideScreen.classList.add("active");
+        document.querySelectorAll(".tts-btn").forEach((button) => button.classList.remove("playing"));
+      }
+
+      function renderLanguageCards(destination) {
+        languageGrid.replaceChildren();
+        ["ko", "en", "zh", "ja"].forEach((lang) => {
+          const item = destination.tts[lang];
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "language-card";
+          card.innerHTML = `
+            <div class="language-label">${languageNames[lang]}</div>
+            <div class="language-text">${item.text}</div>
+            ${item.roman ? `<div class="language-roman">${item.roman}</div>` : ""}
+          `;
+          card.addEventListener("click", () => speak(lang));
+          languageGrid.append(card);
+        });
+      }
+
+      function goBack() {
+        guideScreen.classList.remove("active");
+        visitorScreen.classList.add("active");
+        renderGrid();
+      }
+
+      function speak(lang) {
+        if (!currentDest) {
+          currentDest = 0;
+        }
+        const text = destinations[currentDest].tts[lang].text;
+        const audioPath = `audio/${currentDest}_${lang}.mp3`;
+
+        playAudioFile(audioPath, lang, () => speakWithBrowserVoice(text, lang));
+      }
+
+      function playAudioFile(audioPath, lang, onMissingFile) {
+        window.speechSynthesis?.cancel();
+        document.querySelectorAll(".tts-btn").forEach((button) => button.classList.remove("playing"));
+        const activeButton = document.querySelector(`[data-speak="${lang}"]`);
+        activeButton.classList.add("playing");
+
+        const audio = new Audio(audioPath);
+        audio.onended = () => activeButton.classList.remove("playing");
+        audio.onerror = () => {
+          activeButton.classList.remove("playing");
+          onMissingFile();
+        };
+        audio.play().catch(() => {
+          activeButton.classList.remove("playing");
+          onMissingFile();
+        });
+      }
+
+      function speakWithBrowserVoice(text, lang) {
+        if (!("speechSynthesis" in window)) {
+          alert("이 브라우저는 음성 기능을 지원하지 않습니다.");
+          return;
+        }
+
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = langCodes[lang];
+        utterance.rate = 0.88;
+
+        document.querySelectorAll(".tts-btn").forEach((button) => button.classList.remove("playing"));
+        const activeButton = document.querySelector(`[data-speak="${lang}"]`);
+        activeButton.classList.add("playing");
+        utterance.onend = () => activeButton.classList.remove("playing");
+        window.speechSynthesis.speak(utterance);
+      }
+
+      function speakFollowMe() {
+        if (!("speechSynthesis" in window)) {
+          return;
+        }
+
+        window.speechSynthesis.cancel();
+        const phrases = [
+          { text: "이쪽으로 오세요.", lang: "ko-KR" },
+          { text: "Please follow me.", lang: "en-US" },
+          { text: "请跟我来。", lang: "zh-CN" },
+          { text: "こちらへどうぞ。", lang: "ja-JP" },
+        ];
+        let index = 0;
+
+        function playNext() {
+          if (index >= phrases.length) {
+            return;
+          }
+          const phrase = phrases[index];
+          const utterance = new SpeechSynthesisUtterance(phrase.text);
+          utterance.lang = phrase.lang;
+          utterance.rate = 0.88;
+          utterance.onend = () => {
+            index += 1;
+            playNext();
+          };
+          window.speechSynthesis.speak(utterance);
+        }
+
+        playNext();
+      }
+
+      renderGrid();
+    </script>
+  </body>
+</html>
