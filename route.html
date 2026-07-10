@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>길찾기</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .message-box {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 320px;
+        }
+        .message-box h3 {
+            margin-top: 0;
+        }
+        .error-box {
+            color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="message-box" id="msgBox">
+        <h3>길찾기 안내</h3>
+        <p>현재 위치를 확인하여<br><strong id="destLabel">목적지</strong>(으)로 안내합니다.</p>
+        <p style="font-size: 0.9em; color: #666;">(위치 정보 접근을 '허용'해 주세요)</p>
+    </div>
+
+    <script>
+        // ===== 기본값 (파라미터가 없을 때 사용) =====
+        const DEFAULT_LAT = 37.4768546;
+        const DEFAULT_LON = 126.5233858;
+        const DEFAULT_NAME = "운남동우체국";
+
+        function getParams() {
+            const params = new URLSearchParams(window.location.search);
+
+            const latStr = params.get('lat');
+            const lonStr = params.get('lon');
+            const nameStr = params.get('name');
+
+            const lat = latStr ? parseFloat(latStr) : DEFAULT_LAT;
+            const lon = lonStr ? parseFloat(lonStr) : DEFAULT_LON;
+            const name = nameStr ? decodeURIComponent(nameStr) : DEFAULT_NAME;
+
+            // 잘못된 좌표값이 들어온 경우 기본값으로 대체
+            if (isNaN(lat) || isNaN(lon)) {
+                return { lat: DEFAULT_LAT, lon: DEFAULT_LON, name: DEFAULT_NAME };
+            }
+            return { lat, lon, name };
+        }
+
+        function startRouting() {
+            const dest = getParams();
+            document.getElementById('destLabel').textContent = dest.name;
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const currentLat = position.coords.latitude;
+                        const currentLon = position.coords.longitude;
+
+                        const destName = encodeURIComponent(dest.name);
+                        const url = `https://map.kakao.com/link/from/내위치,${currentLat},${currentLon}/to/${destName},${dest.lat},${dest.lon}`;
+
+                        window.location.href = url;
+                    },
+                    function(error) {
+                        showError("위치 정보를 가져올 수 없습니다. 권한을 허용했는지 확인해주세요.");
+                    }
+                );
+            } else {
+                showError("이 브라우저/기기에서는 위치 정보 기능을 지원하지 않습니다.");
+            }
+        }
+
+        function showError(message) {
+            const box = document.getElementById('msgBox');
+            box.innerHTML = `<h3 class="error-box">오류</h3><p>${message}</p>`;
+        }
+
+        window.onload = startRouting;
+    </script>
+</body>
+</html>
