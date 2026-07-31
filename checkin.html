@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>출퇴근 체크인</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Malgun Gothic", sans-serif;
+    margin: 0; padding: 16px;
+    background: #f4f6f9;
+    text-align: center;
+  }
+  h1 { font-size: 22px; color: #1B3A6B; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 14px; margin-bottom: 16px; }
+  #reader {
+    width: 100%; max-width: 420px;
+    margin: 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #1B3A6B;
+  }
+  .result {
+    max-width: 420px; margin: 20px auto;
+    padding: 24px; border-radius: 12px;
+    font-size: 20px; font-weight: bold;
+    display: none;
+  }
+  .result.ok { background: #E8F5E9; color: #2E7D32; border: 2px solid #2E7D32; }
+  .result.warn { background: #FBEAEA; color: #C0392B; border: 2px solid #C0392B; }
+  .result .big { font-size: 28px; display: block; margin-bottom: 8px; }
+  .zone-select {
+    margin: 12px auto; max-width: 420px;
+  }
+  .zone-select select {
+    font-size: 16px; padding: 8px 12px; border-radius: 8px;
+  }
+  .retry-btn {
+    margin-top: 16px; padding: 12px 24px; font-size: 16px;
+    border-radius: 8px; border: none; background: #1B3A6B; color: white;
+  }
+</style>
+</head>
+<body>
+  <h1>출퇴근 QR 체크인</h1>
+  <div class="sub">배지의 QR코드를 카메라에 비춰주세요</div>
+
+  <div class="zone-select">
+    구역:
+    <select id="zoneFilter">
+      <option value="all">전체</option>
+      <option value="구석말 공원">구석말 공원</option>
+      <option value="영마루 공원">영마루 공원</option>
+    </select>
+  </div>
+
+  <div id="reader"></div>
+  <div id="result" class="result"></div>
+  <button id="retryBtn" class="retry-btn" style="display:none" onclick="restartScan()">다시 스캔하기</button>
+
+<script>
+// ── 설정: 실제 배포 시 이 URL을 Apps Script 웹앱 URL로 교체하세요 ──
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/여기에_배포된_ID를_붙여넣으세요/exec";
+
+// ── 참가자 명단 (구글시트 참가자명단 탭과 동일하게 유지) ──
+const PARTICIPANTS = {
+  "P001": { name: "김상순", zone: "구석말 공원" },
+  "P002": { name: "김송희", zone: "구석말 공원" },
+  "P003": { name: "박경희", zone: "구석말 공원" },
+  "P004": { name: "유숙희", zone: "구석말 공원" },
+  "P005": { name: "김영봉", zone: "영마루 공원" },
+  "P006": { name: "김종학", zone: "영마루 공원" },
+  "P007": { name: "이순화", zone: "영마루 공원" },
+  "P008": { name: "천애자", zone: "영마루 공원" },
+  "P009": { name: "최영봉", zone: "영마루 공원" },
+};
+
+// ── 출근/퇴근 판정 시간 기준 (필요에 맞게 수정) ──
+const CHECKIN_START = 6;   // 오전 6시부터
+const CHECKIN_END   = 10;  // 오전 10시까지 → 출근
+const CHECKOUT_START = 15; // 오후 3시부터
+const CHECKOUT_END   = 19; // 오후 7시까지 → 퇴근
+
+let html5QrCode;
+let isProcessing = false;
+
+function getType() {
+  const h = new Date().getHours();
+  if (h >= CHECKIN_START && h < CHECKIN_END) return "출근";
+  if (h >= CHECKOUT_START && h < CHECKOUT_END) return "퇴근";
+  return null;
+}
+
+function showResult(cls, big, sub) {
+  const el = document.getElementById("result");
+  el.className = "result " + cls;
+  el.innerHTML = `<span class="big">${big}</span>${sub}`;
+  el.style.display = "block";
+  document.getElementById("retryBtn").style.display = "inline-block";
+}
+
+async function onScanSuccess(decodedText) {
+  if (isProcessing) return;
+  isProcessing = true;
+  html5QrCode.pause(true);
+
+  const p = PARTICIPANTS[decodedText];
+  if (!p) {
+    showResult("warn", "등록되지 않은 QR", "관리자에게 문의해주세요");
+    return;
+  }
+
+  const zoneFilter = document.getElementById("zoneFilter").value;
+  if (zoneFilter !== "all" && p.zone !== zoneFilter) {
+    showResult("warn", "구역 불일치", `${p.name}님은 ${p.zone} 소속입니다`);
+    return;
+  }
+
+  const type = getType();
+  if (!type) {
+    showResult("warn", "체크 시간 아님", "출퇴근 인정 시간이 아닙니다");
+    return;
+  }
+
+  const now = new Date();
+  const payload = {
+    id: decodedText,
+    name: p.name,
+    zone: p.zone,
+    type: type,
+    time: now.toISOString(),
+  };
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors", // Apps Script 웹앱 특성상 no-cors로 전송
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    showResult("ok", `${p.name}님 ${type} 처리`, `${p.zone} · ${now.toLocaleTimeString("ko-KR")}`);
+  } catch (err) {
+    showResult("warn", "전송 실패", "인터넷 연결을 확인해주세요");
+  }
+}
+
+function restartScan() {
+  document.getElementById("result").style.display = "none";
+  document.getElementById("retryBtn").style.display = "none";
+  isProcessing = false;
+  html5QrCode.resume();
+}
+
+window.addEventListener("load", () => {
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    onScanSuccess
+  );
+});
+</script>
+</body>
+</html>
