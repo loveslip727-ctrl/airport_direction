@@ -51,8 +51,8 @@
     구역:
     <select id="zoneFilter">
       <option value="all">전체</option>
-      <option value="구석말 공원">구석말 공원</option>
-      <option value="영마루 공원">영마루 공원</option>
+      <option value="금호어울림 2차 경로당">금호어울림 2차 경로당</option>
+      <option value="아이사랑 꿈터 1호">아이사랑 꿈터 1호</option>
     </select>
   </div>
 
@@ -64,34 +64,32 @@
 // ── 설정: 배포된 Google Apps Script 웹 앱 URL ──
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhik5C9VhIL5HOscV9LideqmZZD6E4zOED57KRq0-1NxxjYeZWfHG2oup-JN-cnVAplg/exec";
 
-// ── 참가자 명단 (구글시트 참가자명단 탭과 동일하게 유지) ──
+// ── 참가자 명단 (실제 운영 사업단 2곳) ──
 const PARTICIPANTS = {
-  "P001": { name: "김상순", zone: "구석말 공원" },
-  "P002": { name: "김송희", zone: "구석말 공원" },
-  "P003": { name: "박경희", zone: "구석말 공원" },
-  "P004": { name: "유숙희", zone: "구석말 공원" },
-  "P005": { name: "김영봉", zone: "영마루 공원" },
-  "P006": { name: "김종학", zone: "영마루 공원" },
-  "P007": { name: "이순화", zone: "영마루 공원" },
-  "P008": { name: "천애자", zone: "영마루 공원" },
-  "P009": { name: "최영봉", zone: "영마루 공원" },
+  // 금호어울림 2차 경로당 (10:00 ~ 13:00)
+  "P010": { name: "정인지", zone: "금호어울림 2차 경로당" },
+  "P011": { name: "김영남", zone: "금호어울림 2차 경로당" },
+
+  // 아이사랑 꿈터 1호 (09:30 ~ 12:30)
+  "P012": { name: "이명국", zone: "아이사랑 꿈터 1호" },
+  "P013": { name: "김미선", zone: "아이사랑 꿈터 1호" },
 };
 
-// ── 출근/퇴근 판정 시간 기준 (필요시 시간 범위 조정 가능) ──
-const CHECKIN_START = 6;   // 오전 6시부터
-const CHECKIN_END   = 10;  // 오전 10시까지 → 출근
-const CHECKOUT_START = 15; // 오후 3시부터
-const CHECKOUT_END   = 19; // 오후 7시까지 → 퇴근
-
-let html5QrCode;
-let isProcessing = false;
-
+// ── 두 사업장 통합 출퇴근 판정 함수 ──
 function getType() {
   const h = new Date().getHours();
-  if (h >= CHECKIN_START && h < CHECKIN_END) return "출근";
-  if (h >= CHECKOUT_START && h < CHECKOUT_END) return "퇴근";
-  // 테스트 및 시간 예외 처리를 원할 경우 위 조건 외에도 기본 반환값을 설정할 수 있습니다.
-  return null;
+  const m = new Date().getMinutes();
+  const totalMinutes = h * 60 + m; // 하루 중 경과된 분(Minute) 수 계산
+
+  // 출근 인정 범위: 08:30 ~ 10:59 (510분 ~ 659분)
+  // (09:30 출근조, 10:00 출근조 모두 포함)
+  if (totalMinutes >= 510 && totalMinutes < 660) return "출근";
+
+  // 퇴근 인정 범위: 11:30 ~ 13:59 (690분 ~ 839분)
+  // (12:30 퇴근조, 13:00 퇴근조 모두 포함)
+  if (totalMinutes >= 690 && totalMinutes < 840) return "퇴근";
+
+  return null; // 그 외 시간대는 체크인 제한
 }
 
 function showResult(cls, big, sub) {
@@ -137,7 +135,7 @@ async function onScanSuccess(decodedText) {
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors", // Apps Script 웹앱 특성상 no-cors로 전송
+      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
