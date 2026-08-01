@@ -39,7 +39,7 @@
   }
   .retry-btn {
     margin-top: 16px; padding: 12px 24px; font-size: 16px;
-    border-radius: 8px; border: none; background: #1B3A6B; color: white; cursor: pointer;
+    border-radius: 8px; border: none; background: #1B3A6B; color: white;
   }
 </style>
 </head>
@@ -61,35 +61,62 @@
   <button id="retryBtn" class="retry-btn" style="display:none" onclick="restartScan()">다시 스캔하기</button>
 
 <script>
-// ── 설정: 배포된 Google Apps Script 웹 앱 URL ──
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhik5C9VhIL5HOscV9LideqmZZD6E4zOED57KRq0-1NxxjYeZWfHG2oup-JN-cnVAplg/exec";
+// ── 설정: 실제 배포 시 이 URL을 Apps Script 웹앱 URL로 교체하세요 ──
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/여기에_배포된_ID를_붙여넣으세요/exec";
 
-// ── 참가자 명단 (실제 운영 사업단 2곳) ──
+// ── 참가자 명단 (구글시트 참가자명단 탭과 동일하게 유지) ──
 const PARTICIPANTS = {
-  // 금호어울림 2차 경로당 (10:00 ~ 13:00)
   "P010": { name: "정인지", zone: "금호어울림 2차 경로당" },
   "P011": { name: "김영남", zone: "금호어울림 2차 경로당" },
-
-  // 아이사랑 꿈터 1호 (09:30 ~ 12:30)
   "P012": { name: "이명국", zone: "아이사랑 꿈터 1호" },
   "P013": { name: "김미선", zone: "아이사랑 꿈터 1호" },
 };
 
-// ── 두 사업장 통합 출퇴근 판정 함수 ──
+// ── 출근/퇴근 판정 시간 기준 (필요에 맞게 수정) ──
+const CHECKIN_START = 6;   // 오전 6시부터
+const CHECKIN_END   = 10;  // 오전 10시까지 → 출근
+const CHECKOUT_START = 15; // 오후 3시부터
+const CHECKOUT_END   = 19; // 오후 7시까지 → 퇴근
+
+// ── GPS 위치 검증: 구역별 고정 좌표 + 허용 반경(m) ──
+const ZONE_COORDS = {
+  "금호어울림 2차 경로당": { lat: 37.4947, lon: 126.4952, radius: 300 },
+  "아이사랑 꿈터 1호":     { lat: 37.4912, lon: 126.4862, radius: 150 },
+};
+
+// 두 좌표 사이 거리(m) 계산 - 하버사인 공식
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+            Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// 현재 위치를 Promise로 가져오기
+function getCurrentPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("이 기기는 위치 확인을 지원하지 않습니다"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+    });
+  });
+}
+
+let html5QrCode;
+let isProcessing = false;
+
 function getType() {
   const h = new Date().getHours();
-  const m = new Date().getMinutes();
-  const totalMinutes = h * 60 + m; // 하루 중 경과된 분(Minute) 수 계산
-
-  // 출근 인정 범위: 08:30 ~ 10:59 (510분 ~ 659분)
-  // (09:30 출근조, 10:00 출근조 모두 포함)
-  if (totalMinutes >= 510 && totalMinutes < 660) return "출근";
-
-  // 퇴근 인정 범위: 11:30 ~ 13:59 (690분 ~ 839분)
-  // (12:30 퇴근조, 13:00 퇴근조 모두 포함)
-  if (totalMinutes >= 690 && totalMinutes < 840) return "퇴근";
-
-  return null; // 그 외 시간대는 체크인 제한
+  if (h >= CHECKIN_START && h < CHECKIN_END) return "출근";
+  if (h >= CHECKOUT_START && h < CHECKOUT_END) return "퇴근";
+  return null;
 }
 
 function showResult(cls, big, sub) {
@@ -123,6 +150,24 @@ async function onScanSuccess(decodedText) {
     return;
   }
 
+  // ── GPS 위치 검증 ──
+  showResult("ok", "위치 확인 중...", "잠시만 기다려주세요");
+  let coords;
+  try {
+    const pos = await getCurrentPosition();
+    coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+  } catch (err) {
+    showResult("warn", "위치 확인 실패", "위치 권한을 허용해주세요");
+    return;
+  }
+
+  const zoneCoord = ZONE_COORDS[p.zone];
+  const dist = getDistance(coords.lat, coords.lon, zoneCoord.lat, zoneCoord.lon);
+  if (dist > zoneCoord.radius) {
+    showResult("warn", "구역 밖입니다", `${p.zone}에서 ${Math.round(dist)}m 떨어진 위치입니다`);
+    return;
+  }
+
   const now = new Date();
   const payload = {
     id: decodedText,
@@ -130,12 +175,14 @@ async function onScanSuccess(decodedText) {
     zone: p.zone,
     type: type,
     time: now.toISOString(),
+    lat: coords.lat,
+    lon: coords.lon,
   };
 
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors",
+      mode: "no-cors", // Apps Script 웹앱 특성상 no-cors로 전송
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
