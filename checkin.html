@@ -64,7 +64,7 @@
 // ── 설정: 단일 웹앱 URL로 수정 ──
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhq1ldVT8vYyI1XMZIryMmEYG865PgyFl6_AYFkUyY5PIo3zeN4XNjDc4F_8EkoQCMpw/exec";
 
-// ── 참가자 명단 ──
+// ── 참가자 명단 (구글시트 참가자명단 탭과 동일하게 유지) ──
 const PARTICIPANTS = {
   "P010": { name: "정인지", zone: "금호어울림 2차 경로당" },
   "P011": { name: "김영남", zone: "금호어울림 2차 경로당" },
@@ -72,16 +72,16 @@ const PARTICIPANTS = {
   "P013": { name: "김미선", zone: "아이사랑 꿈터 1호" },
 };
 
-// ── 출근/퇴근 판정 시간 기준 ──
+// ── 출근/퇴근 판정 시간 기준 (필요에 맞게 수정) ──
 const CHECKIN_START = 6;   // 오전 6시부터
 const CHECKIN_END   = 10;  // 오전 10시까지 → 출근
 const CHECKOUT_START = 15; // 오후 3시부터
 const CHECKOUT_END   = 19; // 오후 7시까지 → 퇴근
 
-// ── GPS 위치 검증 (현장 운영용 반경 300m 설정) ──
+// ── GPS 위치 검증: 테스트용 대형 반경 설정 유지 ──
 const ZONE_COORDS = {
-  "금호어울림 2차 경로당": { lat: 37.4947, lon: 126.4952, radius: 3000000000 },
-  "아이사랑 꿈터 1호":     { lat: 37.4912, lon: 126.4862, radius: 3000000000 },
+  "금호어울림 2차 경로당": { lat: 37.4947, lon: 126.4952, radius: 30000000000 },
+  "아이사랑 꿈터 1호":     { lat: 37.4912, lon: 126.4862, radius: 15000000000 },
 };
 
 // 두 좌표 사이 거리(m) 계산 - 하버사인 공식
@@ -182,7 +182,7 @@ async function onScanSuccess(decodedText) {
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors",
+      mode: "no-cors", // Apps Script 웹앱 특성상 no-cors로 전송
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
